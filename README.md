@@ -1,4 +1,10 @@
 # Towards-Realtime-MOT
+
+## Preperation for DETRAC and KITTI Dataset
+
+Refer to [DETRAC_KITTI_Dataset_Guide.md](https://github.com/raymondng76/Towards-Realtime-MOT/blob/master/DETRAC_KITTI_Dataset_Guide.md) for step by step guide on training on DETRAC and KITTI datasets.
+
+
 **NEWS:** 
 - **[2020.01.29]** More models uploaded! The fastest one runs at around **38 FPS!**. 
 - **[2019.10.11]** Training and evaluation data uploaded! Please see [DATASET_ZOO.md](https://github.com/Zhongdao/Towards-Realtime-MOT/blob/master/DATASET_ZOO.md) for details.
