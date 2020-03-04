@@ -12,9 +12,18 @@ class Evaluator(object):
         self.data_root = data_root
         self.seq_name = seq_name
         self.data_type = data_type
-
-        self.load_annotations()
+        if data_type == 'detrac':
+            self.load_detrac_annotations()
+        else:
+            self.load_annotations()
         self.reset_accumulator()
+    
+    def load_detrac_annotations(self):
+        assert self.data_type == 'detrac'
+
+        gt_filename = os.path.join(self.data_root, 'DETRAC-Test-Annotations-XML', self.seq_name+'.xml')
+        self.gt_frame_dict = read_results(gt_filename, self.data_type, is_gt=True, is_ignore=False)
+        self.gt_ignore_frame_dict = dict()
 
     def load_annotations(self):
         assert self.data_type == 'mot'
@@ -66,10 +75,14 @@ class Evaluator(object):
             events = None
         return events
 
-    def eval_file(self, filename):
-        self.reset_accumulator()
+    def eval_file(self, filename, isDetrac=False):
+        if isDetrac:
+            dt = 'mot'
+        else:
+            dt =self.data_type
 
-        result_frame_dict = read_results(filename, self.data_type, is_gt=False)
+        self.reset_accumulator()
+        result_frame_dict = read_results(filename, dt, is_gt=False)
         frames = sorted(list(set(self.gt_frame_dict.keys()) | set(result_frame_dict.keys())))
         for frame_id in frames:
             trk_objs = result_frame_dict.get(frame_id, [])

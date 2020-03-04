@@ -19,6 +19,8 @@ from utils.utils import *
 def write_results(filename, results, data_type):
     if data_type == 'mot':
         save_format = '{frame},{id},{x1},{y1},{w},{h},1,-1,-1,-1\n'
+    elif data_type == 'detrac':
+        save_format = '{frame},{id},{x1},{y1},{w},{h},1,-1,-1,-1\n'
     elif data_type == 'kitti':
         save_format = '{frame} {id} pedestrian 0 0 -10 {x1} {y1} {x2} {y2} -10 -10 -10 -1000 -1000 -1000 -10\n'
     else:
@@ -83,7 +85,7 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
     logger.setLevel(logging.INFO)
     result_root = os.path.join(data_root, '..', 'results', exp_name)
     mkdir_if_missing(result_root)
-    data_type = 'mot'
+    data_type = 'detrac' # remove if not testing detrac dataset
 
     # Read config
     cfg_dict = parse_model_cfg(opt.cfg)
@@ -97,10 +99,16 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
         output_dir = os.path.join(data_root, '..','outputs', exp_name, seq) if save_images or save_videos else None
 
         logger.info('start seq: {}'.format(seq))
-        dataloader = datasets.LoadImages(osp.join(data_root, seq, 'img1'), opt.img_size)
+        
+        if data_type == 'detrac':
+            dataloader = datasets.LoadImages(osp.join(data_root, seq), opt.img_size)
+            frame_rate = 30
+        else:
+            dataloader = datasets.LoadImages(osp.join(data_root, seq, 'img1'), opt.img_size)
+            meta_info = open(os.path.join(data_root, seq, 'seqinfo.ini')).read() 
+            frame_rate = int(meta_info[meta_info.find('frameRate')+10:meta_info.find('\nseqLength')])
+        
         result_filename = os.path.join(result_root, '{}.txt'.format(seq))
-        meta_info = open(os.path.join(data_root, seq, 'seqinfo.ini')).read() 
-        frame_rate = int(meta_info[meta_info.find('frameRate')+10:meta_info.find('\nseqLength')])
         nf, ta, tc = eval_seq(opt, dataloader, data_type, result_filename,
                               save_dir=output_dir, show_image=show_image, frame_rate=frame_rate)
         n_frame += nf
@@ -110,7 +118,10 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
         # eval
         logger.info('Evaluate seq: {}'.format(seq))
         evaluator = Evaluator(data_root, seq, data_type)
-        accs.append(evaluator.eval_file(result_filename))
+        if data_type == 'detrac':
+            accs.append(evaluator.eval_file(result_filename, isDetrac=True))
+        else:
+            accs.append(evaluator.eval_file(result_filename))
         if save_videos:
             output_video_path = osp.join(output_dir, '{}.mp4'.format(seq))
             cmd_str = 'ffmpeg -f image2 -i {}/%05d.jpg -c:v copy {}'.format(output_dir, output_video_path)
@@ -139,17 +150,20 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='track.py')
     parser.add_argument('--cfg', type=str, default='cfg/yolov3.cfg', help='cfg file path')
     parser.add_argument('--weights', type=str, default='weights/latest.pt', help='path to weights file')
+    parser.add_argument('--data-root', type=str, default='/home', help='path to root folder for dataset')
     parser.add_argument('--iou-thres', type=float, default=0.5, help='iou threshold required to qualify as detected')
     parser.add_argument('--conf-thres', type=float, default=0.5, help='object confidence threshold')
     parser.add_argument('--nms-thres', type=float, default=0.4, help='iou threshold for non-maximum suppression')
     parser.add_argument('--min-box-area', type=float, default=200, help='filter out tiny boxes')
     parser.add_argument('--track-buffer', type=int, default=30, help='tracking buffer')
     parser.add_argument('--test-mot16', action='store_true', help='tracking buffer')
+    parser.add_argument('--test-detrac', action='store_true', help='test on detrac test set')
     parser.add_argument('--save-images', action='store_true', help='save tracking results (image)')
     parser.add_argument('--save-videos', action='store_true', help='save tracking results (video)')
     opt = parser.parse_args()
     print(opt, end='\n\n')
  
+    data_root = opt.data_root
     if not opt.test_mot16:
         seqs_str = '''MOT17-02-SDP
                       MOT17-04-SDP
@@ -159,7 +173,47 @@ if __name__ == '__main__':
                       MOT17-11-SDP
                       MOT17-13-SDP
                     '''
-        data_root = '/home/wangzd/datasets/MOT/MOT17/images/train'
+        #data_root = '/home/wangzd/datasets/MOT/MOT17/images/train'
+    elif opt.test_detrac:
+        seqs_str = '''MVI_39031
+                    MVI_39311
+                    MVI_39361
+                    MVI_39371
+                    MVI_39401
+                    MVI_39501
+                    MVI_39511
+                    MVI_40701
+                    MVI_40711
+                    MVI_40712
+                    MVI_40714
+                    MVI_40742
+                    MVI_40743
+                    MVI_40761
+                    MVI_40762
+                    MVI_40763
+                    MVI_40771
+                    MVI_40772
+                    MVI_40773
+                    MVI_40774
+                    MVI_40775
+                    MVI_40792
+                    MVI_40793
+                    MVI_40851
+                    MVI_40852
+                    MVI_40853
+                    MVI_40854
+                    MVI_40855
+                    MVI_40863
+                    MVI_40864
+                    MVI_40891
+                    MVI_40892
+                    MVI_40901
+                    MVI_40902
+                    MVI_40903
+                    MVI_40904
+                    MVI_40905
+                '''
+        # data_root = '/diskd/raymond/DETRAC/test_images'
     else:
         seqs_str = '''MOT16-01
                      MOT16-03
@@ -168,7 +222,7 @@ if __name__ == '__main__':
                      MOT16-08
                      MOT16-12
                      MOT16-14'''
-        data_root = '/home/wangzd/datasets/MOT/MOT16/images/test'
+        # data_root = '/home/wangzd/datasets/MOT/MOT16/images/test'
     seqs = [seq.strip() for seq in seqs_str.split()]
 
     main(opt,

@@ -1,6 +1,7 @@
 import os
 from typing import Dict
 import numpy as np
+import xml.etree.ElementTree as ET
 
 from utils.log import logger
 
@@ -13,6 +14,8 @@ def write_results(filename, results_dict: Dict, data_type: str):
         os.makedirs(path)
 
     if data_type in ('mot', 'mcmot', 'lab'):
+        save_format = '{frame},{id},{x1},{y1},{w},{h},1,-1,-1,-1\n'
+    elif data_type == 'detrac':
         save_format = '{frame},{id},{x1},{y1},{w},{h},1,-1,-1,-1\n'
     elif data_type == 'kitti':
         save_format = '{frame} {id} pedestrian -1 -1 -10 {x1} {y1} {x2} {y2} -1 -1 -1 -1000 -1000 -1000 -10 {score}\n'
@@ -36,6 +39,8 @@ def write_results(filename, results_dict: Dict, data_type: str):
 def read_results(filename, data_type: str, is_gt=False, is_ignore=False):
     if data_type in ('mot', 'lab'):
         read_fun = read_mot_results
+    elif data_type == 'detrac':
+        read_fun = read_detrac_results
     else:
         raise ValueError('Unknown data type: {}'.format(data_type))
 
@@ -59,6 +64,24 @@ labels={'ped', ...			% 1
 };
 """
 
+def read_detrac_results(filename, is_gt, is_ignore):
+    results_dict = dict()
+    if os.path.isfile(filename):        
+        root = ET.parse(filename).getroot()
+        for frame in root:
+            if (frame.tag != 'frame'):
+                continue
+            fid = int(frame.attrib['num'])
+            results_dict.setdefault(fid, list())
+            for targets in frame[0]:
+                tid = int(targets.attrib['id'])
+                box = [float(targets[0].attrib['left']),
+                        float(targets[0].attrib['top']),
+                        float(targets[0].attrib['width']),
+                        float(targets[0].attrib['height'])]
+                tlwh = tuple(map(float, box))
+                results_dict[fid].append((tlwh, tid, 1))
+    return results_dict
 
 def read_mot_results(filename, is_gt, is_ignore):
     valid_labels = {1}
