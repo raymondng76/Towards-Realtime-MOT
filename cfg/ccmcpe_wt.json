@@ -1,0 +1,17 @@
+{
+    "root":"/home/raymond/Towards-Realtime-MOT/",
+    "train":
+    {
+		"wildtrack":"./data/wildtrack_train.train",
+        
+    },
+    "test_emb":
+    {
+        
+    },
+    "test":
+    {
+		"wildtrack":"./data/wildtrack_train.train",
+        
+    }
+}
